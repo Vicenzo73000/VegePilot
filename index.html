@@ -24,7 +24,7 @@ label.f{display:block;font-size:11px;font-weight:700;text-transform:uppercase;co
 .chip{flex:none;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:var(--card);cursor:pointer}
 .chip.on{background:var(--head);color:#fff;border-color:var(--head)}
 .chip.add{border-style:dashed;color:var(--mut)}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
 .tile{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;text-align:center;cursor:pointer}
 .tile b{display:block;font-size:24px}.tile span{font-size:12px;color:var(--mut)}
 .tile.on{outline:2px solid var(--or)}
@@ -56,16 +56,16 @@ label.f{display:block;font-size:11px;font-weight:700;text-transform:uppercase;co
 <div id="toast"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="img" accept="image/*" multiple hidden>
-<script src="https://cdn.jsdelivr.net/npm/docx@9.0.2/build/index.umd.js"></script>
+<script src="docx.js"></script>
 <script>
-const ST={nf:"Non faite",an:"À anticiper",ok:"Faite"},PR={imp:"Importante",sou:"Souhaitable"},CA={veg:"Végétation",bat:"Bâtiment / obstacle",aut:"Autre"};
+const ST={nf:"Non faite",an:"À anticiper"},PR={imp:"Importante",sou:"Souhaitable"},CA={veg:"Végétation",aut:"Autre"};
 let S={aff:"",cur:0,filt:"all",open:null,incl:false,ouv:[{nom:"Ouvrage 1",v:[]}]},db=null,dl=null,pend=null,tm;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const today=()=>new Date().toLocaleDateString("fr-FR");
 function toast(t){const e=$("#toast");e.textContent=t;e.style.opacity=1;clearTimeout(tm);tm=setTimeout(()=>e.style.opacity=0,2600)}
 const idb=()=>new Promise((ok,ko)=>{const r=indexedDB.open("elagage",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
-async function load(){try{db=await idb();const v=await new Promise(ok=>{const q=db.transaction("kv").objectStore("kv").get("s");q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)});if(v){S=v;S.open=null}}catch(e){toast("Sauvegarde locale indisponible")}render()}
+async function load(){try{db=await idb();const v=await new Promise(ok=>{const q=db.transaction("kv").objectStore("kv").get("s");q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)});if(v){S=v;S.open=null;S.ouv.forEach(o=>o.v.forEach(x=>{if(!ST[x.st])x.st="nf";if(!CA[x.ca])x.ca="aut"}))}}catch(e){toast("Sauvegarde locale indisponible")}render()}
 let st;function save(){clearTimeout(st);st=setTimeout(()=>{try{db&&db.transaction("kv","readwrite").objectStore("kv").put(S,"s")}catch(e){}},300)}
 const cur=()=>S.ouv[S.cur];
 function card(x,i){
@@ -91,8 +91,8 @@ function render(){
   $("#app").innerHTML=`<label class="f" style="margin-top:0">Affaire / prestation</label><input type="text" data-f="aff" value="${esc(S.aff)}" placeholder="Intitulé ou référence">
   <div class="chips">${tabs}</div>
   <label class="f" style="margin-top:0">Nom de l’ouvrage</label><input type="text" data-f="nom" value="${esc(o.nom)}">
-  <div class="tiles">${tile("nf","Non faites")}${tile("an","À anticiper")}${tile("ok","Faites")}</div>
-  <div class="inc"><input type="checkbox" id="incl"${S.incl?" checked":""}><label for="incl">Inclure les visées faites dans l’export</label>${f!="all"?`<button class="chip" style="margin-left:auto" data-a="ft" data-k="all">Tout afficher</button>`:""}</div>
+  <div class="tiles">${tile("nf","Non faites")}${tile("an","À anticiper")}</div>
+  <div class="inc">${f!="all"?`<button class="chip" style="margin-left:auto" data-a="ft" data-k="all">Tout afficher</button>`:""}</div>
   ${list||`<div class="empty">Aucune visée ici.<br>Appuie sur « ＋ Visée » pour en ajouter une.</div>`}
   ${S.ouv.length>1?`<button class="btn d" data-a="do">Supprimer cet ouvrage</button>`:""}`;
   save();
@@ -149,7 +149,7 @@ async function exportDoc(){
     p([r(S.aff?S.aff+"  ·  ":"",{bold:true}),r("Établie le "+today(),{color:"6B7C85"})],{spacing:{after:200}})];
   let tot=0;
   for(const o of S.ouv){
-    const vs=o.v.map((x,i)=>({x,i})).filter(({x})=>S.incl||x.st!="ok");if(!vs.length)continue;
+    const vs=o.v.map((x,i)=>({x,i}));if(!vs.length)continue;
     out.push(new Paragraph({heading:HeadingLevel.HEADING_1,pageBreakBefore:tot>0,spacing:{before:0,after:160},border:{bottom:{style:BorderStyle.SINGLE,size:12,color:OR,space:4}},children:[r("OUVRAGE  ·  "+(o.nom||"Sans nom"),{bold:true,size:34,color:NAVY})]}));
     for(const{x,i}of vs){
       tot++;
@@ -173,6 +173,7 @@ async function exportDoc(){
 }
 load();
 
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>
