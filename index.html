@@ -52,7 +52,7 @@ label.f{display:block;font-size:11px;font-weight:700;text-transform:uppercase;co
 <body>
 <header><small>Élagage · mesures topographiques</small><h1>Suivi des visées</h1></header>
 <main id="app"></main>
-<div class="bar"><button class="btn p" data-a="av">＋ Visée</button><button class="btn" id="exp" data-a="ex" hidden>Word ⬇</button></div>
+<div class="bar"><button class="btn p" data-a="av">＋ Visée</button><button class="btn" id="exp" data-a="ex">Word ⬇</button></div>
 <div id="toast"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="img" accept="image/*" multiple hidden>
@@ -167,12 +167,12 @@ async function exportDoc(){
   try{
     const doc=new Document({sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1200,bottom:1000,left:1000,right:1000}}},children:out}]});
     const blob=await Packer.toBlob(doc);
-    await dl.save({filename:`Fiche_elagage_${new Date().toISOString().slice(0,10)}.docx`,data:blob});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`Fiche_elagage_${new Date().toISOString().slice(0,10)}.docx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),10000);
     toast("Fichier Word prêt");
   }catch(err){if(err&&err.code=="declined")return;toast("Export impossible : "+(err.message||err.code||"erreur"))}
 }
 load();
-if(window.claude&&claude.use){claude.use("downloads").then(d=>{if(d){dl=d;$("#exp").hidden=false}}).catch(()=>{})}
+
 </script>
 </body>
 </html>
