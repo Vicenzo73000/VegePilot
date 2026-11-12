@@ -47,6 +47,20 @@ label.f{display:block;font-size:11px;font-weight:700;text-transform:uppercase;co
 .empty{text-align:center;color:var(--mut);padding:30px 10px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:var(--head);color:#fff;padding:9px 16px;border-radius:20px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20;max-width:90%;text-align:center}
 .inc{font-size:13px;color:var(--mut);margin-top:6px;display:flex;gap:6px;align-items:center}
+.ph img{cursor:pointer}.ph span{position:absolute;left:3px;bottom:3px;font-size:13px;background:rgba(0,0,0,.65);border-radius:10px;padding:1px 5px;pointer-events:none}
+#ed{position:fixed;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+#ed[hidden]{display:none}
+.et{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#fff}
+.et button{background:none;border:0;color:#fff;font-size:17px;padding:6px 4px}
+#edok{color:var(--or)!important;font-weight:700}
+.ew{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 6px}
+#edc{touch-action:none;background:#222;display:block}
+.eb{padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;background:#111}
+.er{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.er button{border:2px solid transparent;border-radius:10px;padding:9px 10px;background:#2a2a2a;color:#fff;font-size:14px}
+.er button.on{border-color:var(--or)}
+.er .cl{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.25);padding:0}
+.er .cl.on{border-color:#fff}
 </style>
 </head>
 <body>
@@ -54,6 +68,13 @@ label.f{display:block;font-size:11px;font-weight:700;text-transform:uppercase;co
 <main id="app"></main>
 <div class="bar"><button class="btn p" data-a="av">＋ Visée</button><button class="btn" id="exp" data-a="ex">Word ⬇</button></div>
 <div id="toast"></div>
+<div id="ed" hidden>
+<div class="et"><button id="edx">✕ Fermer</button><b>Annoter la photo</b><button id="edok">✓ Valider</button></div>
+<div class="ew"><canvas id="edc"></canvas></div>
+<div class="eb">
+<div class="er"><button class="cl" data-c="#1565ff" style="background:#1565ff" aria-label="Bleu"></button><button class="cl" data-c="#e53935" style="background:#e53935" aria-label="Rouge"></button><button class="cl" data-c="#111111" style="background:#111111" aria-label="Noir"></button><button class="cl" data-c="#2e9e44" style="background:#2e9e44" aria-label="Vert"></button></div>
+<div class="er"><button id="edd">✏️ Dessin</button><button id="edt">🔤 Texte</button><button id="edw">Fin</button><button id="edu">↩ Retour</button></div>
+</div></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="img" accept="image/*" multiple hidden>
 <script src="docx.js"></script>
@@ -77,7 +98,7 @@ function card(x,i){
     <div class="row"><div><label class="f">Statut</label>${sel("st",ST)}</div><div><label class="f">Priorité</label>${sel("pr",PR)}</div></div>
     <label class="f">Cause</label>${sel("ca",CA)}
     <label class="f">Où / quoi élaguer, remarque</label><textarea rows="3" data-f="n" placeholder="Ex. branches de chêne à 15 m du pilier, côté amont">${esc(x.n)}</textarea>
-    <div class="ph">${x.ph.map((p,j)=>`<div><img src="${p.d}" alt="Photo ${j+1}"><button data-a="rp" data-j="${j}" aria-label="Retirer">✕</button></div>`).join("")}</div>
+    <div class="ph">${x.ph.map((p,j)=>`<div><img data-a="ed" data-j="${j}" src="${p.d}" alt="Photo ${j+1}"><span>✏️</span><button data-a="rp" data-j="${j}" aria-label="Retirer">✕</button></div>`).join("")}</div>${x.ph.length?`<div class="inc">Touche une photo pour dessiner ou écrire dessus</div>`:""}
     <div class="row" style="margin-top:8px"><button class="btn" data-a="cam">📷 Prendre une photo</button><button class="btn" data-a="img">🖼 Importer / capture</button></div>
     <button class="btn d" data-a="dv">Supprimer cette visée</button></div>`;
   }
@@ -111,6 +132,7 @@ document.addEventListener("click",e=>{
     if(!b.dataset.arm){b.dataset.arm=1;b.textContent="Appuie encore pour confirmer";return}
     if(a=="dv"){V.splice(i,1);S.open=null}else{S.ouv.splice(S.cur,1);S.cur=0}
     render()}
+  else if(a=="ed")openEd(i,+b.dataset.j);
   else if(a=="ex")exportDoc();
 });
 document.addEventListener("input",e=>{
@@ -136,6 +158,54 @@ for(const id of["cam","img"])$("#"+id).addEventListener("change",async e=>{
   for(const f of fs){try{x.ph.push(await shrink(f))}catch(err){toast("Image non lisible")}}
   S.open=pend;render();
 });
+let E=null;
+function openEd(i,j){
+  const ph=cur().v[i].ph[j],im=new Image();
+  im.onload=()=>{
+    E={i,j,im,w:ph.w,h:ph.h,ops:[],col:"#e53935",mode:"d",big:false,cur:null,k:Math.max(ph.w,ph.h)/1100};
+    $("#ed").hidden=false;
+    const cv=$("#edc"),bx=$(".ew").getBoundingClientRect(),f=Math.min((bx.width-12)/ph.w,bx.height/ph.h);
+    cv.width=ph.w;cv.height=ph.h;cv.style.width=Math.floor(ph.w*f)+"px";cv.style.height=Math.floor(ph.h*f)+"px";
+    edDraw();edUI();
+  };
+  im.src=ph.d;
+}
+function edDraw(){
+  const cv=$("#edc"),g=cv.getContext("2d");
+  g.drawImage(E.im,0,0,E.w,E.h);g.lineCap="round";g.lineJoin="round";
+  for(const o of E.ops){
+    if(o.t){g.font=`bold ${o.s}px -apple-system,Helvetica,Arial,sans-serif`;g.textAlign="center";g.textBaseline="middle";
+      g.strokeStyle="#fff";g.lineWidth=o.s/5;g.strokeText(o.t,o.x,o.y);g.fillStyle=o.c;g.fillText(o.t,o.x,o.y)}
+    else{g.strokeStyle=o.c;g.lineWidth=o.w;g.beginPath();g.moveTo(o.p[0][0],o.p[0][1]);
+      if(o.p.length==1)g.lineTo(o.p[0][0]+.01,o.p[0][1]);else for(const q of o.p)g.lineTo(q[0],q[1]);g.stroke()}
+  }
+}
+function edUI(){
+  document.querySelectorAll("#ed .cl").forEach(b=>b.classList.toggle("on",b.dataset.c==E.col));
+  $("#edd").classList.toggle("on",E.mode=="d");$("#edt").classList.toggle("on",E.mode=="t");
+  $("#edw").textContent=E.big?"Épais":"Fin";
+}
+function edClose(){$("#ed").hidden=true;E=null}
+(()=>{
+  const cv=$("#edc"),pt=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cv.addEventListener("pointerdown",e=>{
+    if(!E)return;e.preventDefault();const[x,y]=pt(e);
+    if(E.mode=="t"){const t=prompt("Texte à écrire sur la photo :");if(t&&t.trim()){E.ops.push({c:E.col,t:t.trim(),x,y,s:(E.big?80:44)*E.k});edDraw()}return}
+    E.cur={c:E.col,w:(E.big?14:6)*E.k,p:[[x,y]]};E.ops.push(E.cur);cv.setPointerCapture(e.pointerId);edDraw();
+  });
+  cv.addEventListener("pointermove",e=>{if(!E||!E.cur)return;e.preventDefault();E.cur.p.push(pt(e));edDraw()});
+  for(const n of["pointerup","pointercancel"])cv.addEventListener(n,()=>{if(E)E.cur=null});
+  document.querySelectorAll("#ed .cl").forEach(b=>b.addEventListener("click",()=>{E.col=b.dataset.c;edUI()}));
+  $("#edd").addEventListener("click",()=>{E.mode="d";edUI()});
+  $("#edt").addEventListener("click",()=>{E.mode="t";edUI()});
+  $("#edw").addEventListener("click",()=>{E.big=!E.big;edUI()});
+  $("#edu").addEventListener("click",()=>{E.ops.pop();edDraw()});
+  $("#edx").addEventListener("click",()=>{if(E.ops.length&&!confirm("Abandonner les modifications de cette photo ?"))return;edClose()});
+  $("#edok").addEventListener("click",()=>{
+    if(E.ops.length){const ph=cur().v[E.i].ph[E.j];ph.d=cv.toDataURL("image/jpeg",.8);S.open=E.i}
+    edClose();render();
+  });
+})();
 async function exportDoc(){
   const D=window.docx;if(!D){toast("Bibliothèque Word non chargée (connexion requise)");return}
   const{Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,ShadingType,BorderStyle,ImageRun,HeadingLevel,AlignmentType}=D;
